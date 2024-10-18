@@ -17,10 +17,17 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <div className="flex justify-end gap-4 p-2">
+      <Link to="/Admin">   
+        <button className="px-4 py-2 text-white bg-indigo-600 rounded-full hover:bg-green-700">
+          Admin
+        </button>
+      </Link>
+      <Link to="/DoctorList">
         <button className="px-4 py-2 text-white bg-green-600 rounded-full hover:bg-green-700">
           Find a Doctor
         </button>
-        <Link to="/BookAppointments">      
+      </Link>
+       <Link to="/BookAppointments">      
             <button className="px-4 py-2 text-white bg-blue-600 rounded-full hover:bg-blue-700">
                 Request Appointment
             </button>
@@ -65,7 +72,19 @@ export default function HomePage() {
             </a>
           </li>
           <li>
-            <Link to="/PatientDashboard">
+            <a href="/Pathology" className="hover:text-gray-300">
+              Pathology
+            </a>
+          </li>
+          <Link to='/Pharmacy'>
+          <li>
+            <a href="/Pharmacy" className="hover:text-gray-300">
+              Pharmacy
+            </a>
+          </li>
+          </Link>
+          <li>
+            <Link to="/patientLogin">
             <p className="hover:text-gray-300">
               Patient Corner
             </p>

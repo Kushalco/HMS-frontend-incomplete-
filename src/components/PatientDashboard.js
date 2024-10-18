@@ -1,12 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Calendar, ShoppingBag, FileText, Activity, ChevronDown, Menu, X } from 'lucide-react';
 
-import {Link} from 'react-router-dom';
+import {Link,useParams} from 'react-router-dom';
 
 export default function PatientDashboard() {
+  const {patientId}=useParams();
+  const [patient,setPatient] = useState(null);
+  const [loading, setLoading]= useState(true);
+  const [error,setError]=useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  useEffect(() =>{
+    const fetchPatientData = async () => {
+      try{
+        const response = await fetch(`http://localhost:8080/api/patients/${patientId}`);
+        if(!response.ok)throw new Error('Failed to fetch Patient Data');
+        const data = await response.json();
+        setPatient(data);
+      }catch(error){
+        console.error('Error fetching patient:',error);
+        setError('Failed to load');
+      }finally{
+        setLoading(false);
+      }
+    };
+    fetchPatientData();
+  }, [patientId]);
+  //Appointment page
+
+  if(loading)return <p className='text-center mt-10'>Loading Patient Data</p>
+  if(error)return <p className='text-center text-red-500 mt-10'>{error}</p>
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -21,9 +45,14 @@ export default function PatientDashboard() {
         <button className="px-4 py-2 text-white bg-green-600 rounded-full hover:bg-green-700">
             Find a Doctor
         </button>
-        <Link to='BookAppointments'>        
+        <Link to='/BookAppointments'>        
           <button className="px-4 py-2 text-white bg-blue-600 rounded-full hover:bg-blue-700">
             Request Appointment
+          </button>
+        </Link>
+        <Link to='/Patient'>        
+          <button className="px-4 py-2 text-white bg-blue-600 rounded-full hover:bg-blue-700">
+            Register
           </button>
         </Link>
       </div>
@@ -65,11 +94,20 @@ export default function PatientDashboard() {
               Doctors
             </a>
           </li>
+          <Link to='/PatientDashboard'>
           <li>
             <a href="/patient-corner" className="hover:text-gray-300">
               Patient Corner
             </a>
           </li>
+          </Link>
+          <Link to='/Pharmacy'>
+          <li>
+            <a href="/Pharmacy" className="hover:text-gray-300">
+              Pharmacy
+            </a>
+          </li>
+          </Link>
           <li>
             <a href="/contact" className="hover:text-gray-300">
               Contact Us
@@ -77,22 +115,28 @@ export default function PatientDashboard() {
           </li>
           <li>
             <a href="/Login" className="hover:text-gray-300 ">
-              Login/Register
+            <Link to='/patientLogin'> 
+              Login</Link>
+              /
+            <Link to='/Patient'>
+            register</Link>
             </a>
           </li>
         </ul>
       </nav>
       {isSidebarOpen && (
-        <div className="fixed top-120 left-0 h-full w-64 bg-gray-900 text-white p-4 transform transition-transform duration-300 ease-in-out">
-          <a href="#" className="block py-2 hover:bg-gray-800">
-            Profile Info
-          </a>
-          <a href="#" className="block py-2 hover:bg-gray-800">
-            Appointments
-          </a>
-          <a href="#" className="block py-2 hover:bg-gray-800">
-            Available Medicines
-          </a>
+        <div className="fixed top-120 left-0 h-full w-64 bg-gray-900 text-black p-4 transform transition-transform duration-300 ease-in-out">
+           <div> {patient && (
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-2xl font-semibold text-blue-900 mb-4">Patient Information</h2>
+            <p><strong>Name:</strong> {patient.name}</p>
+            <p><strong>Date of Birth:</strong> {patient.dob}</p>
+            <p><strong>Gender:</strong> {patient.gender}</p>
+            <p><strong>Address:</strong> {patient.address}</p>
+            <p><strong>Mobile No:</strong> {patient.mobileNo}</p>
+            <p><strong>Blood Group:</strong> {patient.bloodGroup}</p>
+          </div>
+        )}</div>
         </div>
       )}
       <main className="flex-grow p-4">
@@ -122,6 +166,7 @@ export default function PatientDashboard() {
             </div>
           </div>
 
+          <Link to={`/patient-dashboard/${patient.patientId}/OrderMedicines.js`} className="text-blue-600 hover:underline">
           <div className="bg-green-100 h-128 overflow-hidden shadow rounded-lg transition-all duration-300 hover:shadow-lg">
             <div className="p-5">
               <div className="flex items-start">
@@ -135,12 +180,12 @@ export default function PatientDashboard() {
               </div>
             </div>
             <div className="bg-green-50 px-5 py-3 mt-14">
-              <a href="#" className="text-sm font-medium text-green-600 hover:text-green-500">
+              <p className="text-sm font-medium text-green-600 hover:text-green-500">
                 Order now
-              </a>
+              </p>
             </div>
           </div>
-
+          </Link>
           <div className="bg-purple-100 h-128 overflow-hidden shadow rounded-lg transition-all duration-300 hover:shadow-lg">
             <div className="p-5">
               <div className="flex items-start">
@@ -159,7 +204,7 @@ export default function PatientDashboard() {
               </a>
             </div>
           </div>
-
+          <Link to={`/patient-dashboard/${patient.patientId}/PatientAppointments`} className="text-blue-600 hover:underline">
           <div className="bg-orange-100 overflow-hidden shadow rounded-lg transition-all duration-300 hover:shadow-lg">
             <div className="p-5">
               <div className="flex items-start">
@@ -167,17 +212,18 @@ export default function PatientDashboard() {
                   <Activity className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
-                  <h2 className="text-lg font-medium text-orange-900">Health Tracker</h2>
-                  <p className="mt-1 text-sm text-orange-700">Monitor your health status</p>
+                  <h2 className="text-lg font-medium text-orange-900">My Appointments</h2>
+                  <p className="mt-1 text-sm text-orange-700">Find your Appointments</p>
                 </div>
-              </div>
-            </div>
-            <div className="bg-orange-50 px-5 py-3 mt-14">
+                </div>
+                </div>
+              <div className="bg-orange-50 px-5 py-3 mt-14">
               <a href="#" className="text-sm font-medium text-orange-600 hover:text-orange-500">
                 Track now
               </a>
             </div>
           </div>
+          </Link>
         </div>
       </main>
     </div>

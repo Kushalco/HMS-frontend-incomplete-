@@ -1,121 +1,269 @@
-'use client'
-
-import { useState } from 'react'
-import {Link }from 'react-router-dom'
-import { ChevronDown, Menu, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { bookAppointment } from '../apiservices/bookAppointment';
+import { ChevronDown } from 'lucide-react';
 
 export default function BookAppointments() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    patient: { name: '', dob: '' },
+    doctor: { name: '', specialization: '' },
+    date: '',
+    time: '',
+    contactNumber: '',
+  });
 
-  const departments = [
-    'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Oncology',
-    'Dermatology', 'Ophthalmology', 'Gynecology', 'Urology', 'Psychiatry'
-  ]
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
 
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+  useEffect(() => {
+    console.log('Modal open state:', isModalOpen);
+  }, [isModalOpen]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith('patient.')) {
+      const field = name.split('.')[1];
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        patient: { ...prevFormData.patient, [field]: value },
+      }));
+    } else if (name.startsWith('doctor.')) {
+      const field = name.split('.')[1];
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        doctor: { ...prevFormData.doctor, [field]: value },
+      }));
+    } else {
+      setFormData((prevFormData) => ({ ...prevFormData, [name]: value }));
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      patient: { name: '', dob: '' },
+      doctor: { name: '', specialization: '' },
+      date: '',
+      time: '',
+      contactNumber: '',
+    });
+  };
+
+const checkAvailability = async () => {
+    try {
+        // eslint-disable-next-line no-template-curly-in-string
+        const response = await fetch(`http://localhost:8080/api/appointment/check?name=${formData.doctor.name}&specialization=${formData.doctor.specialization}&date=${formData.date}&time=${formData.time}`
+        );
+        if (!response.ok) throw new Error('Network response was not ok');
+        const isAvailable = await response.json();
+        return isAvailable; // Return true if available, false if not
+    } catch (error) {
+        console.error('Error checking availability:', error);
+        return false; // Assume unavailable on error
+    }
+};
+  
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setErrorMessage(''); // Reset previous errors
+
+  try {
+    const isAvailable = await checkAvailability(); // Check doctor's availability
+
+    if (!isAvailable) {
+      setErrorMessage('This doctor is not available at the selected time. Please choose a different time.');
+      setIsErrorModalOpen(true); // Open error modal if unavailable
+      resetForm(); 
+      return; // Stop further execution if not available
+    }
+
+    const response = await bookAppointment(formData); // Proceed with booking if available
+
+    if (response.status === 200 || response.status === 201) {
+      setSuccessMessage('Appointment booked successfully!');
+      setIsModalOpen(true); // Open success modal
+      resetForm(); // Reset form after successful submission
+    } else {
+      throw new Error('Failed to book appointment');
+    }
+  } catch (error) {
+    console.error('Error booking appointment:', error);
+    setErrorMessage('There was an error booking your appointment. Please try again.');
+    setIsErrorModalOpen(true); // Open error modal on failure
+  }
+};
+
+  
+  
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <nav id="main-nav" className="bg-gray-800 text-white p-4 fixed top-0 left-0 w-full z-50">
         <div className="flex items-center">
-          <ul className="flex items-center justify-between flex-grow">
-          <button onClick={toggleSidebar} className="flex items-center pl-2 mr-10">
-            {isSidebarOpen ? <X className="mr-2" /> : <Menu className="mr-2" />}
+          <Link to="/" className="flex items-center pl-2 mr-10">
             <span>Home</span>
-          </button>
-            <li><Link href="/doctors-list" className="ml-8">Doctors List</Link></li>
-            <li className="ml-8"><Link href="/appointments">Appointments</Link></li>
-            <li className="ml-8"><Link href="/history">History</Link></li>
+          </Link>
+          <ul className="flex items-center justify-between flex-grow">
+            <li><Link to="/doctors-list" className="ml-8">Doctors List</Link></li>
+            <li className="ml-8"><Link to="/appointments">Appointments</Link></li>
+            <li className="ml-8"><Link to="/history">History</Link></li>
             <li className="relative ml-8">
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center"
-                aria-haspopup="true"
-                aria-expanded={isOpen}
-              >
+              <button className="flex items-center" aria-haspopup="true" aria-expanded="false">
                 Department <ChevronDown className="ml-1" />
               </button>
-              {isOpen && (
-                <ul
-                  className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-md shadow-lg py-1 z-10"
-                  role="menu"
-                >
-                  {departments.map((dept, index) => (
-                    <li key={index} role="menuitem">
-                      <a href="#" className="block px-4 py-2 hover:bg-gray-100">{dept}</a>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           </ul>
         </div>
       </nav>
 
-      {/* Sidebar */}
-      <div className={`fixed  text-white top-110 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 h-full bg-gray-800 duration-300`}>
-        <div className="p-6 ">
-          <ul className="space-y-4">
-            <li>
-            <a href="#" className="block py-2 ">
-              Profile Info
-            </a>
-            </li>
-            <li>
-            <a href="#" className="block py-2">
-              Appointments
-            </a>
-          </li>
-          <li>          
-            <a href="#" className="block py-2">
-              Available Medicines
-            </a>
-          </li>
-          </ul>
-        </div>
-      </div>
-
       <main className="flex-grow flex items-start justify-center px-4 pt-16">
-        <div id="appointment-form" className="bg-white rounded-lg shadow-md border border-gray-200 p-8 w-full max-w-2xl">
-          <h1 className="text-2xl font-bold mb-6 text-center">Book an Appointment</h1>
-          <form className="space-y-6">
-            <div className="max-w-md mx-auto">
-              <label htmlFor="patientName" className="block text-sm font-medium text-gray-700">Patient Name</label>
-              <input type="text" id="patientName" name="patientName" placeholder="Enter patient's full name" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="patientId" className="block text-sm font-medium text-gray-700">Patient ID</label>
-              <input type="text" id="patientId" name="patientId" placeholder="Found in profile if registered" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="doctorName" className="block text-sm font-medium text-gray-700">Doctor Name</label>
-              <input type="text" id="doctorName" name="doctorName" placeholder="Enter doctor's full name" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">Doctor ID</label>
-              <input type="text" id="doctorId" name="doctorId" placeholder="Available in Doctor's List" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">Specialization (if any)</label>
-              <input type="text" id="specialization" name="specialization" placeholder="Enter doctor's specialization" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="appointmentDate" className="block text-sm font-medium text-gray-700">Date</label>
-              <input type="date" id="appointmentDate" name="appointmentDate" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <label htmlFor="appointmentTime" className="block text-sm font-medium text-gray-700">Time</label>
-              <input type="time" id="appointmentTime" name="appointmentTime" className="mt-1 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 border border-gray-200" />
-            </div>
-            <div className="max-w-md mx-auto">
-              <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <div className="w-full md:w-1/2 px-4 mt-4 md:mt-0">
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Book Appointment</h2>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {/* Patient Fields */}
+              <div>
+                <label htmlFor="patient.patientName" className="block mb-1 ml-2 text-sm font-medium text-gray-700">
+                  Patient Name
+                </label>
+                <input
+                  type="text"
+                  name="patient.name"
+                  value={formData.patient.name}
+                  onChange={handleChange}
+                  placeholder="Patient Name"
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="patient.dob" className="block mb-1 ml-2 text-sm font-medium text-gray-700">
+                  Patient DOB
+                </label>
+                <input
+                  type="text"
+                  name="patient.dob"
+                  value={formData.patient.dob}
+                  onChange={handleChange}
+                  placeholder="Patient DOB"
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              {/* Doctor Fields */}
+              <div>
+                <label htmlFor="doctor.name" className="block mb-1 ml-2 text-sm font-medium text-gray-700">
+                  Doctor Name
+                </label>
+                <input
+                  type="text"
+                  name="doctor.name"
+                  value={formData.doctor.name}
+                  onChange={handleChange}
+                  placeholder="Doctor Name"
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="doctor.specialization" className="block mb-1 ml-2 text-sm font-medium text-gray-700">
+                  Doctor Specialization
+                </label>
+                <input
+                  type="text"
+                  name="doctor.specialization"
+                  value={formData.doctor.specialization}
+                  onChange={handleChange}
+                  placeholder="Specialization/General"
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              {/* Date and Time */}
+              <div>
+                <label htmlFor="date" className="block mb-1 ml-2 text-sm font-medium text-gray-700">Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="time" className="block mb-1 ml-2 text-sm font-medium text-gray-700">Time</label>
+                <input
+                  type="time"
+                  name="time"
+                  value={formData.time}
+                  onChange={handleChange}
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="contactNumber" className="block mb-1 ml-2 text-sm font-medium text-gray-700">
+                  Contact Number
+                </label>
+                <input
+                  type="text"
+                  name="contactNumber"
+                  value={formData.contactNumber}
+                  onChange={handleChange}
+                  placeholder="Patient Contact Number"
+                  className="flex h-10 w-full rounded-md border"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="bg-blue-500 text-white w-full h-10 rounded-md hover:bg-blue-600"
+              >
                 Book Appointment
               </button>
-            </div>
-          </form>
+            </form>
+
+            {/* Success Modal */}
+            {isModalOpen && (
+              <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+                <div className="bg-white p-4 rounded shadow-md">
+                  <h2 className="text-lg font-bold">{successMessage}</h2>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Error Modal */}
+            {isErrorModalOpen && (
+              <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+                <div className="bg-red-100 p-4 rounded shadow-md">
+                  <h2 className="text-lg font-bold text-red-600">{errorMessage}</h2>
+                  <button
+                    onClick={() => setIsErrorModalOpen(false)}
+                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
